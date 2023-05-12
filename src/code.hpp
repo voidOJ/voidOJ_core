@@ -44,5 +44,4 @@ class Code {
     int interpret();
     int judge();
     void judge_diff();
-    const char **gen_cp_command();
 };

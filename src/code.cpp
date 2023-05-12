@@ -84,13 +84,25 @@ int Code::execute() {
         }
         return 0;
     }
+    return 0;
 }
 
 int Code::compile() {
     compile_output = gen_tempfile_name(".txt");
     compile_bin = gen_tempfile_name(".out");
+    const char **command = nullptr;
 
-    const char **command = gen_cp_command();
+    if (type == C) {
+        const char *CP_C[] = {"gcc",source_code.c_str() , "-fno-asm", "-Wall", "-o", compile_bin.c_str(), NULL};
+        command = new const char *[6];
+        std::copy(CP_C, CP_C + 6, command);
+    }
+
+    else if (type == CPP) {
+        const char *CP_CPP[] = {"g++",source_code.c_str() , "-fno-asm", "-Wall", "-o", compile_bin.c_str(), NULL};
+        command = new const char *[6];
+        std::copy(CP_CPP, CP_CPP + 6, command);
+    }
 
     int file = open(compile_output.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
     dup2(file, STDOUT_FILENO);
@@ -131,20 +143,7 @@ int Code::compile() {
         }
         return 0;
     }
-}
-
-const char **Code::gen_cp_command() {
-    switch (type) {
-        case C:
-            const char *command[] = {"gcc", "-fno-asm", "-Wall", "-o", compile_bin.c_str(), NULL};
-            return command;
-            break;
-
-        case CPP:
-            const char *command[] = {"g++", "-fno-asm", "-Wall", "-o", compile_bin.c_str(), NULL};
-            return command;
-            break;
-    }
+    return 0;
 }
 
 void Code::judge_diff() {
