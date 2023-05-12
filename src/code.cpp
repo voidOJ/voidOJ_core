@@ -7,17 +7,17 @@ Code::Code(language lang, int id, std::string sc, std::string ans, bool ig_fmt, 
 Code::~Code() {
     // remove(source_code.c_str());
     // remove(answer.c_str());
-    // remove(compile_bin.c_str());
-    // remove(compile_output.c_str());
-    // remove(exe_output.c_str());
+    remove(compile_bin.c_str());
+    remove(compile_output.c_str());
+    remove(exe_output.c_str());
 }
 
 int Code::judge() {
-    if (compile_return && exe_return)
+    if (!compile_return && !exe_return)
         judge_diff();
     else {
-        if (!compile_return) oj_status = OJ::CE;
-        if (compile_return && !exe_return) oj_status = OJ::RE;
+        if (compile_return) oj_status = OJ::CE;
+        if (!compile_return && exe_return && oj_status != OJ::TLE && oj_status != OJ::MLE && oj_status != OJ::OLE) oj_status = OJ::RE;
         return 0;
     }
 
@@ -52,7 +52,7 @@ int Code::execute() {
     if (child_pid == 0) {
         // Set limits by rlimit.
         struct rlimit rl_time;
-        rl_time.rlim_cur = 30;
+        rl_time.rlim_cur = 10;
         rl_time.rlim_max = 60;
         setrlimit(RLIMIT_CPU, &rl_time);
 
@@ -66,9 +66,9 @@ int Code::execute() {
         rl_file.rlim_max = 100 * 1024 * 1024;
         setrlimit(RLIMIT_FSIZE, &rl_file);
 
-        ptrace(PT_TRACE_ME, 0, NULL, NULL);
-
-        execvp(command[0], (char *const *)command);
+        // ptrace(PT_TRACE_ME, 0, NULL, NULL);
+        alarm(10);
+        execvp(command[0],(char * const *)command);
 
         std::cerr << "Failed" << std::endl;
         return 1;
@@ -76,11 +76,11 @@ int Code::execute() {
     if (child_pid > 0) {
         int status;
 
-        ptrace(PTRACE_SETOPTIONS, child_pid, NULL, PTRACE_O_TRACESYSGOOD);
+        // ptrace(PTRACE_SETOPTIONS, child_pid, NULL, PTRACE_O_TRACESYSGOOD);
         auto time_start = std::chrono::high_resolution_clock::now();
 
         waitpid(child_pid, &status, 0);
-        
+
         auto time_end = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
         time = duration;
@@ -91,10 +91,13 @@ int Code::execute() {
         close(stdout_fd);
         close(stderr_fd);
 
-
+        std::cout<<WIFEXITED(status)<<std::endl;
+        std::cout<<WEXITSTATUS(status)<<std::endl;
+        std::cout<<WTERMSIG(status)<<std::endl;
         if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
             std::cout << "Run successfully." << std::endl;
             std::cout << "Time used: " << time <<std::endl;
+            exe_return = 0;
         } else {
             exe_return = 1;
             if (WTERMSIG(status) == SIGXCPU || WTERMSIG(status) == SIGALRM) oj_status = OJ::TLE;
