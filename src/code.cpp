@@ -4,6 +4,14 @@
 Code::Code(language lang, int id, std::string sc, std::string ans) : type(lang), id(id), source_code(sc), answer(ans) {}
 Code::Code(language lang, int id, std::string sc, std::string ans, bool ig_fmt, int t_limit, int m_limit) : type(lang), id(id), source_code(sc), answer(ans), ignore_format(ig_fmt), time_limit(t_limit), mem_limit(m_limit) {}
 
+Code::~Code() {
+    // remove(source_code.c_str());
+    // remove(answer.c_str());
+    // remove(compile_bin.c_str());
+    // remove(compile_output.c_str());
+    // remove(exe_output.c_str());
+}
+
 int Code::judge() {
     if (compile_return && exe_return)
         judge_diff();
@@ -27,10 +35,11 @@ int Code::execute() {
     std::string file_path = "./" + compile_bin;
     const char *command[] = {file_path.c_str(), NULL};
 
+    int stdout_fd = dup(STDOUT_FILENO);
+    int stderr_fd = dup(STDERR_FILENO);
     int file = open(exe_output.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
     dup2(file, STDOUT_FILENO);
     dup2(file, STDERR_FILENO);
-    close(file);
 
     pid_t child_pid = fork();
 
@@ -61,6 +70,7 @@ int Code::execute() {
 
         execvp(command[0], (char *const *)command);
 
+        std::cerr << "Failed" << std::endl;
         return 1;
     }
     if (child_pid > 0) {
@@ -70,18 +80,28 @@ int Code::execute() {
         auto time_start = std::chrono::high_resolution_clock::now();
 
         waitpid(child_pid, &status, 0);
+        
         auto time_end = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
         time = duration;
 
+        dup2(stdout_fd, STDOUT_FILENO);
+        dup2(stderr_fd, STDERR_FILENO);
+        close(file);
+        close(stdout_fd);
+        close(stderr_fd);
+
+
         if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
             std::cout << "Run successfully." << std::endl;
+            std::cout << "Time used: " << time <<std::endl;
         } else {
             exe_return = 1;
             if (WTERMSIG(status) == SIGXCPU || WTERMSIG(status) == SIGALRM) oj_status = OJ::TLE;
             if (WTERMSIG(status) == SIGSEGV) oj_status = OJ::MLE;
             if (WTERMSIG(status) == SIGXFSZ) oj_status = OJ::OLE;
         }
+
         return 0;
     }
     return 0;
@@ -93,21 +113,22 @@ int Code::compile() {
     const char **command = nullptr;
 
     if (type == C) {
-        const char *CP_C[] = {"gcc",source_code.c_str(), "-fno-asm", "-Wall", "-o", compile_bin.c_str() ,NULL};
+        const char *CP_C[] = {"gcc", source_code.c_str(), "-fno-asm", "-Wall", "-o", compile_bin.c_str(), NULL};
         command = new const char *[7];
         std::copy(CP_C, CP_C + 7, command);
     }
 
     else if (type == CPP) {
-        const char *CP_CPP[] = {"g++",source_code.c_str(),"-fno-asm", "-Wall", "-o", compile_bin.c_str() ,NULL};
+        const char *CP_CPP[] = {"g++", source_code.c_str(), "-fno-asm", "-Wall", "-o", compile_bin.c_str(), NULL};
         command = new const char *[7];
         std::copy(CP_CPP, CP_CPP + 7, command);
     }
 
-//    int file = open(compile_output.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
-//    dup2(file, STDOUT_FILENO);
-//    dup2(file, STDERR_FILENO);
-//    close(file);
+    int stdout_fd = dup(STDOUT_FILENO);
+    int stderr_fd = dup(STDERR_FILENO);
+    int file = open(compile_output.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    dup2(file, STDOUT_FILENO);
+    dup2(file, STDERR_FILENO);
 
     pid_t child_pid = fork();
 
@@ -125,20 +146,17 @@ int Code::compile() {
         rl_time.rlim_max = 60;
         setrlimit(RLIMIT_CPU, &rl_time);
 
-        std::cout<<"Hi,I am compiler" <<std::endl;
-        std::cout <<"Now check command: ";
-        for (int i = 0;i < 6;i++) {std::cout<<command[i];
-        std::cout<<std::endl;}
         execvp(command[0], (char *const *)command);
 
         // If compile failed
-        std::cerr <<"Failed"<<std::endl;
+        std::cerr << "Failed" << std::endl;
         return 1;
     }
 
     if (child_pid > 0) {
         int status;
         waitpid(child_pid, &status, 0);
+
         if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
             std::cout << "Compiled successfully." << std::endl;
             compile_return = 0;
@@ -146,6 +164,13 @@ int Code::compile() {
             std::cerr << "Failed to compile." << std::endl;
             compile_return = 1;
         }
+
+        dup2(stdout_fd, STDOUT_FILENO);
+        dup2(stderr_fd, STDERR_FILENO);
+        close(file);
+        close(stdout_fd);
+        close(stderr_fd);
+
         return 0;
     }
     return 0;

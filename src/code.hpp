@@ -39,6 +39,8 @@ class Code {
     Code(language lang, int id, std::string sc, std::string ans, bool ig_fmt, int t_limit, int m_limit);
     Code(language lang, int id, std::string sc, std::string ans);
 
+    ~Code();
+
     int compile();
     int execute();
     int interpret();
