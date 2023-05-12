@@ -40,6 +40,6 @@
 *.out
 *.app
 
-# testfile
-tempfile*
-test*
+# # testfile
+# tempfile*
+# test*
