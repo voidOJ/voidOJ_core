@@ -93,21 +93,21 @@ int Code::compile() {
     const char **command = nullptr;
 
     if (type == C) {
-        const char *CP_C[] = {"gcc",source_code.c_str() , "-fno-asm", "-Wall", "-o", compile_bin.c_str(), NULL};
-        command = new const char *[6];
-        std::copy(CP_C, CP_C + 6, command);
+        const char *CP_C[] = {"gcc",source_code.c_str(), "-fno-asm", "-Wall", "-o", compile_bin.c_str() ,NULL};
+        command = new const char *[7];
+        std::copy(CP_C, CP_C + 7, command);
     }
 
     else if (type == CPP) {
-        const char *CP_CPP[] = {"g++",source_code.c_str() , "-fno-asm", "-Wall", "-o", compile_bin.c_str(), NULL};
-        command = new const char *[6];
-        std::copy(CP_CPP, CP_CPP + 6, command);
+        const char *CP_CPP[] = {"g++",source_code.c_str(),"-fno-asm", "-Wall", "-o", compile_bin.c_str() ,NULL};
+        command = new const char *[7];
+        std::copy(CP_CPP, CP_CPP + 7, command);
     }
 
-    int file = open(compile_output.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
-    dup2(file, STDOUT_FILENO);
-    dup2(file, STDERR_FILENO);
-    close(file);
+//    int file = open(compile_output.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+//    dup2(file, STDOUT_FILENO);
+//    dup2(file, STDERR_FILENO);
+//    close(file);
 
     pid_t child_pid = fork();
 
@@ -125,9 +125,14 @@ int Code::compile() {
         rl_time.rlim_max = 60;
         setrlimit(RLIMIT_CPU, &rl_time);
 
+        std::cout<<"Hi,I am compiler" <<std::endl;
+        std::cout <<"Now check command: ";
+        for (int i = 0;i < 6;i++) {std::cout<<command[i];
+        std::cout<<std::endl;}
         execvp(command[0], (char *const *)command);
 
         // If compile failed
+        std::cerr <<"Failed"<<std::endl;
         return 1;
     }
 
