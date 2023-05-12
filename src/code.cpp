@@ -57,8 +57,8 @@ int Code::execute() {
         setrlimit(RLIMIT_CPU, &rl_time);
 
         struct rlimit rl_mem;
-        rl_mem.rlim_cur = mem_limit;
-        rl_mem.rlim_max = 128 * 1024 * 1024;
+        rl_mem.rlim_cur = 256 * 1024 * 1024;
+        rl_mem.rlim_max = 256 * 1024 * 1024;
         setrlimit(RLIMIT_AS, &rl_mem);
 
         struct rlimit rl_file;
