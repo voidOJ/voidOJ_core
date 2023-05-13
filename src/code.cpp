@@ -1,12 +1,30 @@
 #include "code.hpp"
 
 // Basic Constructors
-Code::Code(language lang, int id, std::string sc, std::string ans) : type(lang), id(id), source_code(sc), answer(ans) {}
-Code::Code(language lang, int id, std::string sc, std::string ans, bool ig_fmt, int t_limit, int m_limit) : type(lang), id(id), source_code(sc), answer(ans), ignore_format(ig_fmt), time_limit(t_limit), mem_limit(m_limit) {}
+Code::Code(language lang, int id, std::string sc, std::string ans) : type(lang), id(id), source_code(sc), answer(ans) {
+    ignore_format = false;
+    time_limit = 1000;
+    mem_limit = 1024 * 128;
+    mem_tolerance = 3500;
+}
+Code::Code(language lang, int id, std::string sc, std::string ans, bool ig_fmt, int t_limit, int m_limit) : type(lang), id(id), source_code(sc), answer(ans), ignore_format(ig_fmt), time_limit(t_limit), mem_limit(m_limit) {
+    mem_tolerance = 3500;
+}
+
+Code::Code() {
+    type = Code::language::C;
+    id = 0;
+    source_code = answer = "";
+
+    ignore_format = true;
+    time_limit = 1000;
+    mem_limit = 1024 * 128;
+    mem_tolerance = 3500;
+}
 
 Code::~Code() {
-    // remove(source_code.c_str());
-    // remove(answer.c_str());
+    remove(source_code.c_str());
+    remove(answer.c_str());
     remove(compile_bin.c_str());
     remove(compile_output.c_str());
     remove(exe_output.c_str());
@@ -43,14 +61,12 @@ int Code::execute() {
 
     pid_t child_pid = fork();
 
-    // If fork() failed.
     if (child_pid == -1) {
         std::cerr << "Unable to fork child process." << std::endl;
         return 1;
     }
 
     if (child_pid == 0) {
-        // Set limits by rlimit.
         struct rlimit rl_time;
         rl_time.rlim_cur = 10;
         rl_time.rlim_max = 60;
@@ -66,20 +82,21 @@ int Code::execute() {
         rl_file.rlim_max = 100 * 1024 * 1024;
         setrlimit(RLIMIT_FSIZE, &rl_file);
 
-        // ptrace(PT_TRACE_ME, 0, NULL, NULL);
         alarm(10);
-        execvp(command[0],(char * const *)command);
+        execvp(command[0], (char *const *)command);
 
         std::cerr << "Failed" << std::endl;
         return 1;
     }
     if (child_pid > 0) {
         int status;
+        struct rusage ru;
 
-        // ptrace(PTRACE_SETOPTIONS, child_pid, NULL, PTRACE_O_TRACESYSGOOD);
         auto time_start = std::chrono::high_resolution_clock::now();
 
-        waitpid(child_pid, &status, 0);
+        wait4(child_pid, &status, 0, &ru);
+        cpu_time = ru.ru_utime.tv_sec * 1000 + ru.ru_utime.tv_usec / 1000 + ru.ru_stime.tv_sec * 1000 + ru.ru_stime.tv_usec / 1000;
+        memory = ru.ru_maxrss - mem_tolerance;
 
         auto time_end = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
@@ -91,12 +108,7 @@ int Code::execute() {
         close(stdout_fd);
         close(stderr_fd);
 
-        std::cout<<WIFEXITED(status)<<std::endl;
-        std::cout<<WEXITSTATUS(status)<<std::endl;
-        std::cout<<WTERMSIG(status)<<std::endl;
         if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-            std::cout << "Run successfully." << std::endl;
-            std::cout << "Time used: " << time <<std::endl;
             exe_return = 0;
         } else {
             exe_return = 1;
@@ -135,15 +147,12 @@ int Code::compile() {
 
     pid_t child_pid = fork();
 
-    // If fork() failed.
     if (child_pid == -1) {
         std::cerr << "Unable to fork child process." << std::endl;
         return 1;
     }
 
-    // In the child proc.
     if (child_pid == 0) {
-        // Set time limit by rlimit.
         struct rlimit rl_time;
         rl_time.rlim_cur = 30;
         rl_time.rlim_max = 60;
@@ -151,7 +160,6 @@ int Code::compile() {
 
         execvp(command[0], (char *const *)command);
 
-        // If compile failed
         std::cerr << "Failed" << std::endl;
         return 1;
     }

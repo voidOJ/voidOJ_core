@@ -15,13 +15,15 @@ class Code {
     enum language { C,
                     CPP,
                     RUST,
-                    PYTHON };
+                    PYTHON,
+                    UNKNOWN };
 
     // Basic variables
     language type;
     int id;
     std::string source_code;
     std::string answer;
+
     bool ignore_format;
     int time_limit;
     int mem_limit;
@@ -32,12 +34,16 @@ class Code {
     std::string exe_output;
     int compile_return;
     int exe_return;
+    int cpu_time;
     int time;
+    int memory;
+    int mem_tolerance;
     OJ oj_status;
 
     // Basic Constructors
     Code(language lang, int id, std::string sc, std::string ans, bool ig_fmt, int t_limit, int m_limit);
     Code(language lang, int id, std::string sc, std::string ans);
+    Code();
 
     ~Code();
 
